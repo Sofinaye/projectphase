@@ -1,9 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 )
+
+func main() {
+	fmt.Println("Frequency counter")
+}
 
 func WordFrequency(input string) map[string]int {
 	reg, _ := regexp.Compile("[^a-zA-Z0-9\\s]+")
