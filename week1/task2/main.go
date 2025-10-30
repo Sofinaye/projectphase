@@ -8,6 +8,7 @@ import (
 
 func main() {
 	fmt.Println("Frequency counter")
+	WordFrequency("the frequency counter counts the frequency of the words in this string")
 }
 
 func WordFrequency(input string) map[string]int {
