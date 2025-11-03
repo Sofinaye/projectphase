@@ -17,3 +17,14 @@ type Library struct {
 	books   map[int]models.Book
 	members map[int]models.Member
 }
+
+func NewLibrary() *Library {
+	return &Library{
+		books:   make(map[int]models.Book),
+		members: make(map[int]models.Member),
+	}
+}
+
+func (l *Library) AddMember(m models.Member) {
+	l.members[m.ID] = m
+}
