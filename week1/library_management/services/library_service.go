@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"library_management/models"
+	"slices"
 )
 
 type LibraryManager interface {
@@ -73,5 +74,37 @@ func (l *Library) BorrowBook(bookID int, memberID int) error {
 	// Append to member's borrowed list.
 	member.BorrowedBooks = append(member.BorrowedBooks, book)
 	l.members[memberID] = member
+	return nil
+}
+
+func (l *Library) ReturnBook(bookID int, memberID int) error {
+	book, ok := l.books[bookID]
+	if !ok {
+		return fmt.Errorf("book with ID %d not found", bookID)
+	}
+	member, ok := l.members[memberID]
+	if !ok {
+		return fmt.Errorf("member with ID %d not found", memberID)
+	}
+
+	// Verify that the member actually borrowed this book.
+	idx := -1
+	for i, b := range member.BorrowedBooks {
+		if b.ID == bookID {
+			idx = i
+			break
+		}
+	}
+	if idx == -1 {
+		return errors.New("member did not borrow this book")
+	}
+
+	// Remove from member borrowed slice (keep order stable).
+	member.BorrowedBooks = slices.Delete(member.BorrowedBooks, idx, idx+1)
+	l.members[memberID] = member
+
+	// Mark book available again.
+	book.Status = "Available"
+	l.books[bookID] = book
 	return nil
 }
