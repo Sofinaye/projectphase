@@ -108,3 +108,31 @@ func (l *Library) ReturnBook(bookID int, memberID int) error {
 	l.books[bookID] = book
 	return nil
 }
+
+func (l *Library) ListAvailableBooks() []models.Book {
+	var result []models.Book
+	for _, b := range l.books {
+		if b.Status == "Available" {
+			result = append(result, b)
+		}
+	}
+	// Sort by ID for consistent output (Go 1.21 has slices.SortFunc)
+	slices.SortFunc(result, func(a, b models.Book) int {
+		return a.ID - b.ID
+	})
+	return result
+}
+
+func (l *Library) ListBorrowedBooks(memberID int) []models.Book {
+	member, ok := l.members[memberID]
+	if !ok {
+		return nil
+	}
+	// Return a copy for safety.
+	out := make([]models.Book, len(member.BorrowedBooks))
+	copy(out, member.BorrowedBooks)
+	slices.SortFunc(out, func(a, b models.Book) int {
+		return a.ID - b.ID
+	})
+	return out
+}
