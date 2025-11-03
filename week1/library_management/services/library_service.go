@@ -12,3 +12,8 @@ type LibraryManager interface {
 	ListAvailableBooks() []models.Book
 	ListBorrowedBooks(memberID int) []models.Book
 }
+
+type Library struct {
+	books   map[int]models.Book
+	members map[int]models.Member
+}
