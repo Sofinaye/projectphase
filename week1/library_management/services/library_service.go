@@ -28,3 +28,8 @@ func NewLibrary() *Library {
 func (l *Library) AddMember(m models.Member) {
 	l.members[m.ID] = m
 }
+
+func (l *Library) GetMember(id int) (models.Member, bool) {
+	m, ok := l.members[id]
+	return m, ok
+}
