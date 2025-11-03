@@ -33,3 +33,8 @@ func (l *Library) GetMember(id int) (models.Member, bool) {
 	m, ok := l.members[id]
 	return m, ok
 }
+
+func (l *Library) GetBook(id int) (models.Book, bool) {
+	b, ok := l.books[id]
+	return b, ok
+}
