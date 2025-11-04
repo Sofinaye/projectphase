@@ -11,8 +11,7 @@ import (
 )
 
 type LibraryController struct {
-	lib services.LibraryManager
-	// We keep a pointer to the concrete type for member helpers
+	lib         services.LibraryManager
 	libConcrete *services.Library
 	in          *bufio.Reader
 }
@@ -37,7 +36,6 @@ func (c *LibraryController) readInt(prompt string) (int, error) {
 }
 
 func (c *LibraryController) seedDemoData() {
-	// Seed a couple of members and books for easy testing.
 	c.libConcrete.AddMember(models.Member{ID: 1, Name: "Alice"})
 	c.libConcrete.AddMember(models.Member{ID: 2, Name: "Bob"})
 
@@ -55,6 +53,7 @@ func (c *LibraryController) printMenu() {
 	fmt.Println("5) List Available Books")
 	fmt.Println("6) List Member's Borrowed Books")
 	fmt.Println("7) Add Member (helper)")
+	fmt.Println("8) Reserve Book (async borrow)")
 	fmt.Println("0) Exit")
 }
 
@@ -161,8 +160,25 @@ func (c *LibraryController) addMember() {
 	fmt.Println("Member added.")
 }
 
+func (c *LibraryController) reserveBook() {
+	bookID, err := c.readInt("Enter Book ID to reserve: ")
+	if err != nil {
+		fmt.Println("Invalid Book ID.")
+		return
+	}
+	memberID, err := c.readInt("Enter Member ID: ")
+	if err != nil {
+		fmt.Println("Invalid Member ID.")
+		return
+	}
+	if err := c.lib.ReserveBook(bookID, memberID); err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+	fmt.Println("Reserved. If borrowing doesn't complete in 5s, it will auto-unreserve.")
+}
+
 func (c *LibraryController) Run() {
-	// Seed some demo data for convenience.
 	c.seedDemoData()
 
 	for {
@@ -172,7 +188,6 @@ func (c *LibraryController) Run() {
 			fmt.Println("Please enter a number.")
 			continue
 		}
-
 		switch choice {
 		case 1:
 			c.addBook()
@@ -188,6 +203,8 @@ func (c *LibraryController) Run() {
 			c.listBorrowed()
 		case 7:
 			c.addMember()
+		case 8:
+			c.reserveBook()
 		case 0:
 			fmt.Println("Goodbye!")
 			return
