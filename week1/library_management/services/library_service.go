@@ -18,6 +18,16 @@ type LibraryManager interface {
 	ReserveBook(bookID int, memberID int) error
 }
 
+type reservation struct {
+	memberID int
+	cancel   chan struct{} // closes when borrow succeeds (cancels timer)
+}
+
+type reservationRequest struct {
+	bookID   int
+	memberID int
+}
+
 type Library struct {
 	books   map[int]models.Book
 	members map[int]models.Member
