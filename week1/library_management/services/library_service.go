@@ -6,6 +6,7 @@ import (
 	"library_management/models"
 	"slices"
 	"sync"
+	"time"
 )
 
 type LibraryManager interface {
@@ -235,4 +236,67 @@ func (l *Library) ReserveBook(bookID int, memberID int) error {
 	l.reserveCh <- reservationRequest{bookID: bookID, memberID: memberID}
 
 	return nil
+}
+
+func (l *Library) processReservations() {
+	for req := range l.reserveCh {
+		// process each request in its own goroutine to allow parallelism
+		go l.tryAsyncBorrow(req)
+	}
+}
+
+// attempt to complete borrow for an existing reservation
+func (l *Library) tryAsyncBorrow(req reservationRequest) {
+	// simulate async processing delay if desired (optional)
+	// time.Sleep(200 * time.Millisecond)
+
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	book, ok := l.books[req.bookID]
+	if !ok {
+		return
+	}
+
+	// must still be reserved by same member
+	res, ok := l.reservations[req.bookID]
+	if !ok || res.memberID != req.memberID || book.Status != "Reserved" {
+		return
+	}
+
+	// perform the borrow
+	member := l.members[req.memberID]
+	book.Status = "Borrowed"
+	l.books[req.bookID] = book
+	member.BorrowedBooks = append(member.BorrowedBooks, book)
+	l.members[req.memberID] = member
+
+	// cancel timer & clear reservation
+	closeSafe(res.cancel)
+	delete(l.reservations, req.bookID)
+}
+
+func (l *Library) autoUnreserve(bookID int, cancel <-chan struct{}) {
+	select {
+	case <-time.After(5 * time.Second):
+		l.mu.Lock()
+		defer l.mu.Unlock()
+		// still reserved?
+		if res, ok := l.reservations[bookID]; ok {
+			// make the book available again
+			if b, ok2 := l.books[bookID]; ok2 && b.Status == "Reserved" {
+				b.Status = "Available"
+				l.books[bookID] = b
+			}
+			delete(l.reservations, bookID)
+		}
+	case <-cancel:
+		// borrow succeeded; just exit
+		return
+	}
+}
+
+func closeSafe(ch chan struct{}) {
+	defer func() { _ = recover() }()
+	close(ch)
 }
