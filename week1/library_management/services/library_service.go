@@ -14,6 +14,8 @@ type LibraryManager interface {
 	ReturnBook(bookID int, memberID int) error
 	ListAvailableBooks() []models.Book
 	ListBorrowedBooks(memberID int) []models.Book
+
+	ReserveBook(bookID int, memberID int) error
 }
 
 type Library struct {
