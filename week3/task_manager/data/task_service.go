@@ -10,3 +10,10 @@ type TaskService struct {
 	tasks  map[int]models.Task
 	nextID int
 }
+
+func NewTaskService() *TaskService {
+	return &TaskService{
+		tasks:  make(map[int]models.Task),
+		nextID: 1,
+	}
+}
