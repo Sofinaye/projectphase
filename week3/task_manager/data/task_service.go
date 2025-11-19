@@ -17,3 +17,13 @@ func NewTaskService() *TaskService {
 		nextID: 1,
 	}
 }
+func (s *TaskService) GetAllTasks() []models.Task {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	result := make([]models.Task, 0, len(s.tasks))
+	for _, t := range s.tasks {
+		result = append(result, t)
+	}
+	return result
+}
