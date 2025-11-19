@@ -1,6 +1,7 @@
 package data
 
 import (
+	"errors"
 	"sync"
 	"task_manager/models"
 )
@@ -50,4 +51,22 @@ func (s *TaskService) CreateTask(input models.TaskInput) models.Task {
 	s.tasks[task.ID] = task
 	s.nextID++
 	return task
+}
+
+func (s *TaskService) UpdateTask(id int, input models.TaskInput) (models.Task, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	task, ok := s.tasks[id]
+	if !ok {
+		return models.Task{}, errors.New("task not found")
+	}
+
+	task.Title = input.Title
+	task.Description = input.Description
+	task.DueDate = input.DueDate
+	task.Status = input.Status
+
+	s.tasks[id] = task
+	return task, nil
 }
