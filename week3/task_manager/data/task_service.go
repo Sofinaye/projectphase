@@ -27,3 +27,11 @@ func (s *TaskService) GetAllTasks() []models.Task {
 	}
 	return result
 }
+
+func (s *TaskService) GetTaskByID(id int) (models.Task, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	task, ok := s.tasks[id]
+	return task, ok
+}
