@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 	"task_manager/data"
+	"task_manager/models"
 
 	"github.com/gin-gonic/gin"
 )
@@ -37,4 +38,18 @@ func (tc *TaskController) GetTaskByID(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": task})
+}
+
+func (tc *TaskController) CreateTask(c *gin.Context) {
+	var input models.TaskInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":  "invalid request payload",
+			"detail": err.Error(),
+		})
+		return
+	}
+
+	task := tc.service.CreateTask(input)
+	c.JSON(http.StatusCreated, gin.H{"data": task})
 }
