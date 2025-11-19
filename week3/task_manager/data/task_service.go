@@ -70,3 +70,14 @@ func (s *TaskService) UpdateTask(id int, input models.TaskInput) (models.Task, e
 	s.tasks[id] = task
 	return task, nil
 }
+
+func (s *TaskService) DeleteTask(id int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if _, ok := s.tasks[id]; !ok {
+		return errors.New("task not found")
+	}
+	delete(s.tasks, id)
+	return nil
+}
