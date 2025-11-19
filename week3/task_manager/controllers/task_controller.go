@@ -79,3 +79,19 @@ func (tc *TaskController) UpdateTask(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"data": updated})
 }
+
+func (tc *TaskController) DeleteTask(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := strconv.Atoi(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid task ID"})
+		return
+	}
+
+	if err := tc.service.DeleteTask(id); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "task not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "task deleted"})
+}
