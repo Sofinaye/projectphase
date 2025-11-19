@@ -53,3 +53,29 @@ func (tc *TaskController) CreateTask(c *gin.Context) {
 	task := tc.service.CreateTask(input)
 	c.JSON(http.StatusCreated, gin.H{"data": task})
 }
+
+func (tc *TaskController) UpdateTask(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := strconv.Atoi(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid task ID"})
+		return
+	}
+
+	var input models.TaskInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":  "invalid request payload",
+			"detail": err.Error(),
+		})
+		return
+	}
+
+	updated, err := tc.service.UpdateTask(id, input)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "task not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": updated})
+}
