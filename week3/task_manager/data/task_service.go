@@ -35,3 +35,19 @@ func (s *TaskService) GetTaskByID(id int) (models.Task, bool) {
 	task, ok := s.tasks[id]
 	return task, ok
 }
+
+func (s *TaskService) CreateTask(input models.TaskInput) models.Task {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	task := models.Task{
+		ID:          s.nextID,
+		Title:       input.Title,
+		Description: input.Description,
+		DueDate:     input.DueDate,
+		Status:      input.Status,
+	}
+	s.tasks[task.ID] = task
+	s.nextID++
+	return task
+}
