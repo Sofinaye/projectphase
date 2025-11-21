@@ -2,22 +2,21 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
-	"os"
+	"time"
+
 	"task_manager/data"
 	"task_manager/router"
-	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func main() {
-	// MongoDB connection string (can be set via env var)
-	mongoURI := os.Getenv("MONGO_URI")
-	if mongoURI == "" {
-		mongoURI = "mongodb://localhost:27017"
-	}
+	mongoURI := "mongodb://localhost:27017"
+
+	fmt.Println("DEBUG MONGO_URI =", mongoURI)
 
 	// Database and collection names
 	dbName := "task_manager_db"
