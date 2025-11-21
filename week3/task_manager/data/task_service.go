@@ -1,83 +1,164 @@
 package data
 
 import (
+	"context"
 	"errors"
-	"sync"
 	"task_manager/models"
+	"time"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// TaskService contains business logic and MongoDB-based data storage.
 type TaskService struct {
-	mu     sync.Mutex
-	tasks  map[int]models.Task
-	nextID int
+	tasksColl    *mongo.Collection
+	countersColl *mongo.Collection
 }
 
-func NewTaskService() *TaskService {
+// NewTaskService initializes the service with Mongo collections.
+func NewTaskService(tasksColl, countersColl *mongo.Collection) *TaskService {
 	return &TaskService{
-		tasks:  make(map[int]models.Task),
-		nextID: 1,
+		tasksColl:    tasksColl,
+		countersColl: countersColl,
 	}
 }
-func (s *TaskService) GetAllTasks() []models.Task {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 
-	result := make([]models.Task, 0, len(s.tasks))
-	for _, t := range s.tasks {
-		result = append(result, t)
+// getContext returns a context with timeout for DB operations.
+func getContext() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), 10*time.Second)
+}
+
+// getNextID uses a counters collection to atomically increment and return a sequence.
+func (s *TaskService) getNextID() (int, error) {
+	ctx, cancel := getContext()
+	defer cancel()
+
+	filter := bson.M{"_id": "task_id"}
+	update := bson.M{"$inc": bson.M{"seq": 1}}
+	opts := options.FindOneAndUpdate().
+		SetUpsert(true).
+		SetReturnDocument(options.After)
+
+	var result struct {
+		Seq int `bson:"seq"`
 	}
-	return result
+
+	err := s.countersColl.FindOneAndUpdate(ctx, filter, update, opts).Decode(&result)
+	if err != nil {
+		return 0, err
+	}
+	return result.Seq, nil
 }
 
-func (s *TaskService) GetTaskByID(id int) (models.Task, bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+// GetAllTasks returns all tasks.
+func (s *TaskService) GetAllTasks() ([]models.Task, error) {
+	ctx, cancel := getContext()
+	defer cancel()
 
-	task, ok := s.tasks[id]
-	return task, ok
+	cur, err := s.tasksColl.Find(ctx, bson.M{})
+	if err != nil {
+		return nil, err
+	}
+	defer cur.Close(ctx)
+
+	var tasks []models.Task
+	for cur.Next(ctx) {
+		var t models.Task
+		if err := cur.Decode(&t); err != nil {
+			return nil, err
+		}
+		tasks = append(tasks, t)
+	}
+	if err := cur.Err(); err != nil {
+		return nil, err
+	}
+	return tasks, nil
 }
 
-func (s *TaskService) CreateTask(input models.TaskInput) models.Task {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+// GetTaskByID returns a task by ID.
+func (s *TaskService) GetTaskByID(id int) (models.Task, bool, error) {
+	ctx, cancel := getContext()
+	defer cancel()
+
+	filter := bson.M{"id": id}
+	var task models.Task
+	err := s.tasksColl.FindOne(ctx, filter).Decode(&task)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return models.Task{}, false, nil
+		}
+		return models.Task{}, false, err
+	}
+	return task, true, nil
+}
+
+// CreateTask creates and stores a new task.
+func (s *TaskService) CreateTask(input models.TaskInput) (models.Task, error) {
+	ctx, cancel := getContext()
+	defer cancel()
+
+	newID, err := s.getNextID()
+	if err != nil {
+		return models.Task{}, err
+	}
 
 	task := models.Task{
-		ID:          s.nextID,
+		ID:          newID,
 		Title:       input.Title,
 		Description: input.Description,
 		DueDate:     input.DueDate,
 		Status:      input.Status,
 	}
-	s.tasks[task.ID] = task
-	s.nextID++
-	return task
-}
 
-func (s *TaskService) UpdateTask(id int, input models.TaskInput) (models.Task, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	task, ok := s.tasks[id]
-	if !ok {
-		return models.Task{}, errors.New("task not found")
+	_, err = s.tasksColl.InsertOne(ctx, task)
+	if err != nil {
+		return models.Task{}, err
 	}
-
-	task.Title = input.Title
-	task.Description = input.Description
-	task.DueDate = input.DueDate
-	task.Status = input.Status
-
-	s.tasks[id] = task
 	return task, nil
 }
 
-func (s *TaskService) DeleteTask(id int) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+// UpdateTask updates an existing task.
+func (s *TaskService) UpdateTask(id int, input models.TaskInput) (models.Task, error) {
+	ctx, cancel := getContext()
+	defer cancel()
 
-	if _, ok := s.tasks[id]; !ok {
+	filter := bson.M{"id": id}
+	update := bson.M{
+		"$set": bson.M{
+			"title":       input.Title,
+			"description": input.Description,
+			"due_date":    input.DueDate,
+			"status":      input.Status,
+		},
+	}
+
+	res := s.tasksColl.FindOneAndUpdate(ctx, filter, update, options.FindOneAndUpdate().SetReturnDocument(options.After))
+	var updated models.Task
+	err := res.Decode(&updated)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return models.Task{}, errors.New("task not found")
+		}
+		return models.Task{}, err
+	}
+
+	return updated, nil
+}
+
+// DeleteTask deletes a task by ID.
+func (s *TaskService) DeleteTask(id int) error {
+	ctx, cancel := getContext()
+	defer cancel()
+
+	filter := bson.M{"id": id}
+	result, err := s.tasksColl.DeleteOne(ctx, filter)
+	if err != nil {
+		return err
+	}
+	if result.DeletedCount == 0 {
 		return errors.New("task not found")
 	}
-	delete(s.tasks, id)
 	return nil
 }
